@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Parking System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212; 
+      color: #E0E0E0; 
+      padding: 30px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #1f1f1f; 
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.7);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #FFD700; 
+    }
+    button {
+      margin: 8px;
+      padding: 10px 16px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color:  #DAA520; 
+      border: 1px solid  #DAA520;
+      color: #fff;
+      border-radius: 4px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background-color: #FFC300; 
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0 15px 0;
+      background-color: #2C3E50; 
+      color: #E0E0E0;
+      border: 1px solid #34495E; 
+      border-radius: 4px;
+    }
+    #output {
+      background: #34495E;
+      padding: 15px;
+      white-space: pre-wrap;
+      border-radius: 6px;
+      margin-top: 20px;
+      border: 1px solid #3C5C3A;
+      color: #E0E0E0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #3C5C3A;
+      padding: 8px;
+      text-align: center;
+      color: #fff;
+    }
+    th {
+      background-color:#DAA520; 
+    }
+    .available {
+      background-color: #16A085; 
+      color: #fff;
+    }
+    .unavailable {
+      background-color: #C0392B; 
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Parking Management System</h1>
+
+    <div id="menu">
+      <button onclick="showForm('park')"> Park Vehicle</button>
+      <button onclick="showForm('reserve')"> Reserve a Slot</button>
+      <button onclick="showForm('blacklist')"> Add to Blacklist</button>
+      <button onclick="viewBlacklist()"> View Blacklist</button>
+      <button onclick="showSlots()"> View All Slots</button>
+    </div>
+
+    <div id="formSection"></div>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    const totalSlots = 50;
+    const reservationFee = 50;
+
+    const slotTypes = {
+      1: { name: "Motorcycle", rate: 20, key: "motorcycle" },
+      2: { name: "Car", rate: 30, key: "car" },
+      3: { name: "Truck/Bus", rate: 40, key: "truckBus" }
+    };
+
+    const slots = {
+      motorcycle: JSON.parse(localStorage.getItem("motorcycle")) || Array(totalSlots).fill(false),
+      car: JSON.parse(localStorage.getItem("car")) || Array(totalSlots).fill(false),
+      truckBus: JSON.parse(localStorage.getItem("truckBus")) || Array(totalSlots).fill(false)
+    };
+
+    const blacklist = JSON.parse(localStorage.getItem("blacklist")) || ["XYZ123", "DEF789"];
+
+    function saveData() {
+      localStorage.setItem("motorcycle", JSON.stringify(slots.motorcycle));
+      localStorage.setItem("car", JSON.stringify(slots.car));
+      localStorage.setItem("truckBus", JSON.stringify(slots.truckBus));
+      localStorage.setItem("blacklist", JSON.stringify(blacklist));
+    }
+
+    function showMessage(msg) {
+      document.getElementById("output").textContent = msg;
+    }
+
+    function getTime() {
+      return new Date().toLocaleString();
+    }
+
+    function showForm(type) {
+      const form = document.getElementById("formSection");
+      form.innerHTML = '';
+
+      if (type === "park") {
+        form.innerHTML = `
+          <h3>Park a Vehicle</h3>
+          <label>Plate Number:</label>
+          <input id="plate" placeholder="e.g. ABC123">
+
+          <label>Vehicle Type:</label>
+          <select id="vehicleType">
+            <option value="1">Motorcycle</option>
+            <option value="2">Car</option>
+            <option value="3">Truck/Bus</option>
+          </select>
+
+          <label>Slot Number (0–49):</label>
+          <input type="number" id="slot" min="0" max="49">
+
+          <label>Hours Parked:</label>
+          <input type="number" id="hours" min="1">
+
+          <label>Payment Method:</label>
+          <select id="payment">
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+            <option value="QR Code">QR Code</option>
+          </select>
+
+          <button onclick="parkVehicle()">Park Now</button>
+        `;
+      }
+
+      if (type === "reserve") {
+        form.innerHTML = `
+          <h3>Reserve a Slot</h3>
+          <label>Plate Number:</label>
+          <input id="reservePlate" placeholder="e.g. ABC123">
+
+          <label>Vehicle Type:</label>
+          <select id="vehicleType">
+            <option value="1">Motorcycle</option>
+            <option value="2">Car</option>
+            <option value="3">Truck/Bus</option>
+          </select>
+
+          <label>Slot Number (0–49):</label>
+          <input type="number" id="slot" min="0" max="49">
+
+          <label>Payment Method:</label>
+          <select id="payment">
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+            <option value="QR Code">QR Code</option>
+          </select>
+
+          <button onclick="reserveSlot()">Reserve</button>
+        `;
+      }
+
+      if (type === "blacklist") {
+        form.innerHTML = `
+          <h3>Blacklist a Plate</h3>
+          <label>Enter Plate:</label>
+          <input id="blacklistPlate">
+          <button onclick="addToBlacklist()">Add to Blacklist</button>
+        `;
+      }
+    }
+
+    function parkVehicle() {
+      const plate = document.getElementById('plate').value.trim().toUpperCase();
+      const type = document.getElementById('vehicleType').value;
+      const slot = parseInt(document.getElementById('slot').value);
+      const hours = parseInt(document.getElementById('hours').value);
+      const payment = document.getElementById('payment').value;
+
+      const { name, rate, key } = slotTypes[type];
+
+      if (!plate || slot < 0 || slot >= totalSlots || hours <= 0) {
+        showMessage("Please fill all fields correctly.");
+        return;
+      }
+
+      if (blacklist.includes(plate)) {
+        showMessage(`Plate ${plate} is blacklisted.`);
+        return;
+      }
+
+      if (slots[key][slot]) {
+        showMessage(`Slot ${slot} is already taken or reserved for ${name}.`);
+        return;
+      }
+
+      slots[key][slot] = true;
+      saveData();
+
+      const total = rate * hours;
+      showMessage(`
+Vehicle Parked Successfully
+
+Plate       : ${plate}
+Vehicle     : ${name}
+Slot        : ${slot}
+Hours       : ${hours}
+Rate/hr     : ₱${rate}
+Total Fee   : ₱${total}
+Payment     : ${payment}
+Time        : ${getTime()}
+      `);
+    }
+
+    function reserveSlot() {
+      const plate = document.getElementById("reservePlate").value.trim().toUpperCase();
+      const type = document.getElementById("vehicleType").value;
+      const slot = parseInt(document.getElementById("slot").value);
+      const payment = document.getElementById("payment").value;
+
+      const { name, key } = slotTypes[type];
+
+      if (!plate || slot < 0 || slot >= totalSlots) {
+        showMessage("Please fill all fields correctly.");
+        return;
+      }
+
+      if (blacklist.includes(plate)) {
+        showMessage(`Plate ${plate} is blacklisted.`);
+        return;
+      }
+
+      if (slots[key][slot]) {
+        showMessage(`Slot ${slot} is already reserved or taken for ${name}.`);
+        return;
+      }
+
+      slots[key][slot] = true;
+      saveData();
+
+      showMessage(`
+Slot Reserved Successfully
+
+Plate Number : ${plate}
+Vehicle Type : ${name}
+Slot Number  : ${slot}
+Reservation Fee: ₱${reservationFee}
+Payment Method : ${payment}
+Time Reserved  : ${getTime()}
+      `);
+    }
+
+    function addToBlacklist() {
+      const plate = document.getElementById("blacklistPlate").value.trim().toUpperCase();
+      if (!plate) {
+        showMessage("Please enter a valid plate.");
+        return;
+      }
+      if (!blacklist.includes(plate)) {
+        blacklist.push(plate);
+        saveData();
+        showMessage(`Plate ${plate} has been added to the blacklist.`);
+      } else {
+        showMessage(`Plate ${plate} is already blacklisted.`);
+      }
+    }
+
+    function viewBlacklist() {
+      if (blacklist.length === 0) {
+        showMessage("No blacklisted vehicles.");
+      } else {
+        showMessage("Blacklisted Plates:\n" + blacklist.join("\n"));
+      }
+    }
+
+    function showSlots() {
+      let html = `<h3>Slot Availability</h3><table><tr><th>Slot</th><th>Motorcycle</th><th>Car</th><th>Truck/Bus</th></tr>`;
+      for (let i = 0; i < totalSlots; i++) {
+        html += `<tr>
+          <td>${i}</td>
+          <td class="${slots.motorcycle[i] ? 'unavailable' : 'available'}">${slots.motorcycle[i] ? 'Taken' : 'Free'}</td>
+          <td class="${slots.car[i] ? 'unavailable' : 'available'}">${slots.car[i] ? 'Taken' : 'Free'}</td>
+          <td class="${slots.truckBus[i] ? 'unavailable' : 'available'}">${slots.truckBus[i] ? 'Taken' : 'Free'}</td>
+        </tr>`;
+      }
+      html += "</table>";
+      document.getElementById("formSection").innerHTML = html;
+      document.getElementById("output").textContent = "";
+    }
+  </script>
+</body>
+</html>
